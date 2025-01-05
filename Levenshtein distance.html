@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Levenshtein Distance Visualization</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        input {
+            margin: 5px;
+        }
+        canvas {
+            border: 1px solid black;
+            margin-top: 20px;
+        }
+        .highlight {
+            background-color: yellow;
+        }
+        table {
+            margin-top: 20px;
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            padding: 8px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+        .highlight-word {
+            background-color: yellow;
+        }
+    </style>
+</head>
+<body>
+    <h2>Levenshtein Distance Calculator with Visualization</h2>
+
+    <label for="string1">String 1:</label>
+    <input type="text" id="string1" value="CHEMISTRY" oninput="updateDistance()"><br><br>
+    
+    <label for="string2">String 2:</label>
+    <input type="text" id="string2" value="ALCHEMIST" oninput="updateDistance()"><br><br>
+
+    <h3>Levenshtein Distance: <span id="distance"></span></h3>
+
+    <canvas id="levenshteinCanvas" width="900" height="600"></canvas>
+
+    <h3>Words with Levenshtein Distance less than or equal to 3:</h3>
+    <table id="wordsTable">
+        <thead>
+            <tr>
+                <th>Word</th>
+                <th>Distance</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Words will be populated here -->
+        </tbody>
+    </table>
+
+    <script>
+        const canvas = document.getElementById('levenshteinCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Function to calculate the Levenshtein Distance and return the matrix
+        function LevenshteinDistanceMatrix(a, b) {
+            const matrix = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+
+            for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
+            for (let j = 0; j <= b.length; j++) matrix[0][j] = j;
+
+            for (let i = 1; i <= a.length; i++) {
+                for (let j = 1; j <= b.length; j++) {
+                    const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+                    matrix[i][j] = Math.min(
+                        matrix[i - 1][j] + 1, // deletion
+                        matrix[i][j - 1] + 1, // insertion
+                        matrix[i - 1][j - 1] + cost // substitution
+                    );
+                }
+            }
+            return matrix;
+        }
+
+        // Function to draw the matrix on the canvas
+        function drawMatrix(matrix, str1, str2) {
+            const cellSize = 40;
+            const rows = matrix.length;
+            const cols = matrix[0].length;
+
+            // Clear the canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // Draw the row and column headers
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    const x = j * cellSize + 50;
+                    const y = i * cellSize + 50;
+
+                    // Highlight cells along the optimal path
+                    if (i > 0 && j > 0) {
+                        const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+                        if (matrix[i][j] === matrix[i - 1][j - 1] + cost ||
+                            matrix[i][j] === matrix[i - 1][j] + 1 ||
+                            matrix[i][j] === matrix[i][j - 1] + 1) {
+                            ctx.fillStyle = '#FFD700';
+                        } else {
+                            ctx.fillStyle = 'white';
+                        }
+                    } else {
+                        ctx.fillStyle = 'white';
+                    }
+
+                    // Draw cell background
+                    ctx.fillRect(x, y, cellSize, cellSize);
+                    ctx.strokeRect(x, y, cellSize, cellSize);
+
+                    // Fill in the cell value
+                    ctx.fillStyle = 'black';
+                    ctx.fillText(matrix[i][j], x + cellSize / 2, y + cellSize / 2);
+                }
+            }
+
+            // Draw the string headers
+            ctx.fillStyle = 'black';
+            for (let i = 0; i < str1.length; i++) {
+                ctx.fillText(str1[i], 50 + (i + 1) * cellSize + cellSize / 2, 30);
+            }
+            for (let j = 0; j < str2.length; j++) {
+                ctx.fillText(str2[j], 30, 50 + (j + 1) * cellSize + cellSize / 2);
+            }
+        }
+
+        // Function to calculate Levenshtein distance between two strings
+        function levenshteinDistance(a, b) {
+            const matrix = LevenshteinDistanceMatrix(a, b);
+            return matrix[a.length][b.length];
+        }
+
+        // Function to update the distance and draw the matrix
+        function updateDistance() {
+            const str1 = document.getElementById("string1").value;
+            const str2 = document.getElementById("string2").value;
+            const matrix = LevenshteinDistanceMatrix(str1, str2);
+            const distance = matrix[str1.length][str2.length];
+            document.getElementById("distance").textContent = distance;
+            drawMatrix(matrix, str1, str2);
+            updateWordsTable(str1);
+        }
+
+        // Function to update the table with words having Levenshtein distance less than or equal to 3
+        function updateWordsTable(str) {
+            const words = ['ALCHEMIST', 'CHEMISTRY', 'ALCHEMY', 'THERMOMETER', 'MYSTERY', 'CHIME', 'CHESS', 'CHINA'];  // Example word list
+            const tableBody = document.getElementById('wordsTable').getElementsByTagName('tbody')[0];
+
+            // Clear the previous table content
+            tableBody.innerHTML = '';
+
+            // Loop through the words and calculate the Levenshtein distance
+            words.forEach(word => {
+                const distance = levenshteinDistance(str, word);
+                const row = tableBody.insertRow();
+
+                // Add the word and distance to the table
+                const wordCell = row.insertCell(0);
+                wordCell.textContent = word;
+
+                const distanceCell = row.insertCell(1);
+                distanceCell.textContent = distance;
+
+                // Highlight the row if the distance is less than or equal to 3
+                if (distance <= 3) { // Highlight if distance is less than or equal to 3
+                    row.classList.add('highlight-word');
+                } else {
+                    row.classList.remove('highlight-word');  // Ensure to remove highlight if distance is greater than 3
+                }
+            });
+        }
+
+        // Initial call to draw the matrix and update the table
+        updateDistance();
+    </script>
+</body>
+</html>

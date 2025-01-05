@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title>Binary Search Tree</title>
+    <script>
+            // 1. Generate 50 random unique numbers
+                    // Function to create an array of elements from 0 to 50
+                    function generateRandomArray() {
+                        const arr = [];     
+                        for (let i = 0; i <= 50; i++) {
+                        arr.push(i);
+                        }
+                        return arr;
+                    }
+                // 2. Node definition
+                class Node {
+                    constructor(value) {
+                        this.value = value;
+                        this.left = null;
+                        this.right = null;
+                    }
+                }
+                // 3. Build a balanced BST
+                function buildBalancedBST(sortedArray) {
+                    if (sortedArray.length === 0) return null;
+                    const mid = Math.floor(sortedArray.length / 2);
+                    const root = new Node(sortedArray[mid]);
+                    root.left = buildBalancedBST(sortedArray.slice(0, mid));
+                    root.right = buildBalancedBST(sortedArray.slice(mid + 1));
+                    return root;
+                }
+                // 4. Search function
+                function searchBST(root, target) {
+                    let path = [];
+                    function searchNode(node, target) {
+                        if (node === null) return null;
+                        path.push(node.value);
+                        if (target === node.value) {
+                            return node;
+                        } else if (target < node.value) {
+                            return searchNode(node.left, target);
+                        } else {
+                            return searchNode(node.right, target);
+                        }
+                    }
+                    const result = searchNode(root, target);
+                    if (result) {
+                        console.log("Path to node:", path.join(" -> "));
+                    } else {
+                        console.log("Node not found");
+                    }
+                }
+                // 5. Insert function
+                function insertBST(root, value) {
+                    if (root === null) {
+                        return new Node(value);
+                    }
+                    if (value < root.value) {
+                        root.left = insertBST(root.left, value);
+                    } else {
+                        root.right = insertBST(root.right, value);
+                    }
+                    return root;
+                }
+                // 6. Remove function
+                function removeBST(root, value) {
+                    if (root === null) return root;
+                    if (value < root.value) {
+                        root.left = removeBST(root.left, value);
+                    } else if (value > root.value) {
+                        root.right = removeBST(root.right, value);
+                    } else {
+                        if (root.left === null && root.right === null) {
+                            return null;
+                        }
+                        if (root.left === null) return root.right;
+                        if (root.right === null) return root.left;
+
+                        let successor = findMin(root.right);
+                        root.value = successor.value;
+                        root.right = removeBST(root.right, successor.value);
+                    }
+                    return root;
+                }
+                function findMin(node) {
+                    while (node.left !== null) {
+                        node = node.left;
+                    }
+                    return node;
+                }
+                // 7. In-order traversal
+                function inOrderTraversal(root) {
+                    if (root !== null) {
+                        inOrderTraversal(root.left);
+                        console.log(root.value);
+                        inOrderTraversal(root.right);
+                    }
+                }
+// Example usage
+const randomArray = generateRandomArray();
+console.log("Generated Array: ", randomArray);
+const sortedArray = randomArray.sort((a, b) => a - b);
+const bstRoot = buildBalancedBST(sortedArray);
+searchBST(bstRoot, randomArray[10]);
+insertBST(bstRoot, 105);
+removeBST(bstRoot, randomArray[5]);
+console.log("In-order traversal after insert/remove:");
+inOrderTraversal(bstRoot);
+//arr.push(100);
+
+
+    </script>
+    </pre>
+</body>
+</html>

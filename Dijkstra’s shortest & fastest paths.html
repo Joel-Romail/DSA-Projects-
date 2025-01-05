@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dijkstra's Shortest/Fastest Path Visualization</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        canvas {
+            border: 1px solid black;
+        }
+        .b1 {
+            border-radius: 12px;
+            border-color: black;
+        }
+    </style>
+</head>
+<body>
+    <h1>Dijkstra's Shortest/Fastest Path Visualization</h1>
+
+    <div>
+        <label for="nodeInput">Enter Nodes (comma separated): </label>
+        <input type="text" id="nodeInput" placeholder="A,B,C,D,E,F" class="b1" />
+    </div>
+    <br>
+    <div>
+        <label for="edgeInput">Enter edges with distance and time (comma separated pairs): </label>
+        <input type="text" id="edgeInput" placeholder="A-B:4,2,B-C:3,1,C-D:5,4" class="b1" />
+    </div>
+    <br>
+    <div>
+        <button onclick="initializeGraph()" class="b1">Create Graph</button>
+    </div>
+    <br>
+    <div>
+        <label for="startNode">Select Start Node: </label>
+        <select id="startNode"></select>
+        <label for="endNode">Select End Node: </label>
+        <select id="endNode"></select>
+        <button onclick="performDijkstra('shortest')">Shortest Path</button>
+        <button onclick="performDijkstra('fastest')">Fastest Path</button>
+        <button onclick="resetGraph()" class="b1">Reset</button>
+    </div>
+    <br>
+    <canvas id="graphCanvas" width="600" height="400" style="border-radius: 12px;"></canvas>
+
+    <h2>Dijkstra Traversal Details:</h2>
+    <p id="dijkstraDetails"></p>
+
+    <script>
+
+let graph = {}; // Main object to store graph
+let nodePositions = {}; // Keeps track of positions of nodes on the canvas for drawing
+let canvas, ctx; // Variables to draw the graph on an HTML canvas
+
+// Initialize the graph with nodes and edges
+function initializeGraph() {
+    const nodes = document.getElementById('nodeInput').value.trim().split(',');     // Get edge input, assuming they are separated by semicolons (e.g., "A-B:4,2;B-C:3,1")
+
+    const edges = document.getElementById('edgeInput').value.trim().split(';'); // Get edges as semicolon-separated input
+
+    console.log("Nodes:", nodes);
+    console.log("Edges:", edges);
+
+    // If nodes or edges are empty, alert the user to fill in the inputs
+    if (nodes.length === 0 || edges.length === 0) {
+        alert("Please enter both nodes and edges.");
+        return;
+    }
+
+    // Reset the graph object before initializing
+    graph = {};
+
+    // Loop through each node and initialize its properties in the graph
+    nodes.forEach(node => {
+        node = node.trim();
+        // For each node, we store an object that includes:
+            // - edges (empty initially, will hold the adjacency list)
+            // - distance (Infinity initially for Dijkstra's)
+            // - parent (null initially, for path reconstruction in Dijkstra)
+            // - visited (false initially to mark nodes during Dijkstra)
+        if (node !== '') { // Ensure no empty nodes are added
+            graph[node] = { 
+                edges: {}, // adjacency list of edges for this node
+                distance: Infinity,  // distance property for Dijkstra's algorithm
+                parent: null, // parent node for path reconstruction
+                visited: false // flag to check if node is visited
+            };
+        }
+    });
+
+    // Parse edges and store in the adjacency list
+    edges.forEach(edge => {
+        const [edgeInfo, travelTimes] = edge.split(':'); // Split edge and travel times (e.g., "A-B:4,2")
+        
+        if (edgeInfo && travelTimes) {
+            const [node1, node2] = edgeInfo.split('-'); // Split the edge into nodes (e.g., "A-B")
+            const [distance, time] = travelTimes.split(','); // Split the distance and time (e.g., "4,2")
+
+            // Check for undefined or invalid edge information
+            if (node1 && node2 && distance && time) {
+                // Store the edge between node1 and node2, with both distance and time
+                const dist = parseInt(distance.trim(), 10); // Distance as integer
+                const timeVal = parseInt(time.trim(), 10); // Time as integer
+
+                if (graph[node1.trim()] && graph[node2.trim()]) {
+                    // Store edges bi-directionally
+                    graph[node1.trim()].edges[node2.trim()] = { distance: dist, time: timeVal };
+                    graph[node2.trim()].edges[node1.trim()] = { distance: dist, time: timeVal }; // Bi-directional edge
+                }
+            } else {
+                console.error("Invalid edge format (must have both distance and time): ", edge);
+            }
+        } else {
+            console.error("Edge format error, expected 'node1-node2:distance,time' format. Invalid edge: ", edge);
+        }
+    });
+
+    // Populate the start and end node dropdowns with the available nodes
+    populateNodeSelections(nodes);
+    // Draw the graph on the canvas (visualization)
+    drawGraph(nodes, edges);
+}
+
+// Populate dropdowns for selecting start and end nodes
+function populateNodeSelections(nodes) {
+    const startNodeSelect = document.getElementById('startNode'); // Dropdown for start node
+    const endNodeSelect = document.getElementById('endNode'); // Dropdown for end node
+    
+    // Clear previous options
+    startNodeSelect.innerHTML = '';
+    endNodeSelect.innerHTML = '';
+    
+    // Add each node as an option in both dropdown menus
+    nodes.forEach(node => {
+        const startOption = document.createElement('option'); // Create option element
+        startOption.value = node.trim(); // Set value to the node name
+        startOption.textContent = node.trim(); // Display the node name
+        startNodeSelect.appendChild(startOption); // Add option to start dropdown
+
+        const endOption = document.createElement('option');
+        endOption.value = node.trim();
+        endOption.textContent = node.trim();
+        endNodeSelect.appendChild(endOption);
+    });
+}
+
+// Function to draw the graph on the canvas, positioning nodes randomly
+function drawGraph(nodes, edges) {
+    canvas = document.getElementById('graphCanvas'); // Get canvas element
+    ctx = canvas.getContext('2d'); // Get 2D drawing context
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear previous drawings
+
+    nodePositions = {}; // Reset node positions
+
+    // Assign random positions to each node on the canvas
+    nodes.forEach(node => {
+        nodePositions[node.trim()] = {
+            x: Math.random() * (canvas.width - 100) + 50, // Random x position
+            y: Math.random() * (canvas.height - 100) + 50 // Random y position
+        };
+    });
+
+    // Draw edges between nodes on the canvas 
+    edges.forEach(edge => {
+        const [edgeInfo, travelTimes] = edge.split(':');
+        const [node1, node2] = edgeInfo.split('-');
+        if (graph[node1.trim()] && graph[node2.trim()]) {
+            const pos1 = nodePositions[node1.trim()];
+            const pos2 = nodePositions[node2.trim()];
+            const [distance, time] = travelTimes.split(',');
+            drawLine(pos1.x, pos1.y, pos2.x, pos2.y, distance.trim(), time.trim());
+        }
+    });
+
+    // Draw each node as a circle with its label
+    nodes.forEach(node => {
+        const pos = nodePositions[node.trim()];
+        drawNode(pos.x, pos.y, node.trim());
+    });
+}
+
+// Draw a node (circle) on the canvas 
+function drawNode(x, y, label) {
+    ctx.beginPath();
+    ctx.arc(x, y, 20, 0, 2 * Math.PI); // Draw circle with radius 20
+    ctx.fillStyle = '#FFCC00'; // Fill color for the node
+    ctx.fill();
+    ctx.stroke();
+
+    // Draw the label (node name) in the center of the circle
+    ctx.fillStyle = '#000';
+    ctx.font = '16px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, x, y); // Lable the node 
+}
+
+// Draw an edge with a label showing distance and time
+function drawLine(x1, y1, x2, y2, distance, time) {
+    ctx.beginPath();
+    ctx.moveTo(x1, y1); // Move to starting point
+    ctx.lineTo(x2, y2); // Draw line to endpoint
+    ctx.strokeStyle = '#000'; // Line color
+    ctx.stroke();
+
+    // Draw distance and time in the middle of the edge
+    const midX = (x1 + x2) / 2;
+    const midY = (y1 + y2) / 2;
+    ctx.fillStyle = '#000';
+    ctx.font = '12px Arial';
+    ctx.fillText(`${distance} / ${time}`, midX, midY); // Display distance and time on the edge
+}
+
+// Reset graph properties (clear distances, parents, and visited flags) for a new calculation
+function resetGraph() {
+    // Reset distances, parents, and visited status for all nodes
+    for (let node in graph) {
+        graph[node].distance = Infinity; // Reset distance 
+        graph[node].parent = null; // Reset parent 
+        graph[node].visited = false; // Reset visited flag 
+    }
+    // Clear Dijkstra details on the screen
+    document.getElementById('dijkstraDetails').textContent = '';
+    drawGraph(Object.keys(graph), getEdgesFromGraph()); // Redraw the graph (no paths)
+}
+
+// Perform Dijkstra's algorithm to find the shortest or fastest path, depending on the type
+function performDijkstra(type) {
+    // Get the start and end nodes selected by the user from the dropdown menus
+    const startNode = document.getElementById('startNode').value;
+    const endNode = document.getElementById('endNode').value;
+    
+    // Reset the graph properties (distance, parent, and visited status)
+    resetGraph();
+
+    // Set the distance of the start node to 0 as it is the starting point
+    graph[startNode].distance = 0;
+
+    // Create an array of all unvisited nodes
+    let unvisitedNodes = Object.keys(graph);
+
+    // Array to store each step for visualization purposes
+    const steps = [];
+
+    // Continue the algorithm while there are unvisited nodes
+    while (unvisitedNodes.length) {
+        // Sort nodes by current shortest distance and pick the one with the smallest distance
+        unvisitedNodes.sort((a, b) => graph[a].distance - graph[b].distance);
+        const currentNode = unvisitedNodes.shift();
+
+        // If we reach the end node, stop the algorithm
+        if (currentNode === endNode) break;
+
+        // Traverse all neighbors of the current node
+        for (let neighbor in graph[currentNode].edges) {
+            // If the neighbor has not been visited
+            if (!graph[neighbor].visited) {
+                const { distance, time } = graph[currentNode].edges[neighbor];
+                const valueToConsider = type === 'fastest' ? time : distance; // Use time for fastest or distance for shortest
+
+                const newDistance = graph[currentNode].distance + valueToConsider; // Calculate the potential new distance
+                if (newDistance < graph[neighbor].distance) {
+                    graph[neighbor].distance = newDistance; // Update the shortest distance for the neighbor
+                    graph[neighbor].parent = currentNode; // Set the current node as the parent of the neighbor
+                    steps.push({ currentNode, neighbor, distance: newDistance }); // Add this step to visualize
+                }
+            }
+        }
+
+        graph[currentNode].visited = true; // Mark the current node as visited
+    }
+
+    // Visualize the steps of the algorithm
+    visualizeSteps(steps, type);
+}
+
+// Visualize Dijkstra's algorithm steps
+function visualizeSteps(steps, type) {
+    let index = 0;
+
+    // Function to animate each step of the algorithm
+    function step() {
+        if (index < steps.length) {
+            const { currentNode, neighbor, distance } = steps[index];
+            drawEdgeTraversal(currentNode, neighbor); // Visualize edge traversal
+            document.getElementById('dijkstraDetails').textContent =
+                `${type === 'shortest' ? 'Shortest' : 'Fastest'} path: ${currentNode} -> ${neighbor}, Distance: ${distance}`;
+            index++;
+            setTimeout(step, 500); // Delay to animate the step
+        } else {
+            // Display the final path once the algorithm is finished
+            displayFinalPath(type);
+        }
+    }
+
+    step(); // Start the animation
+}
+
+// Draw the traversal of an edge (to visualize the algorithm)
+function drawEdgeTraversal(node1, node2) {
+    const pos1 = nodePositions[node1];
+    const pos2 = nodePositions[node2];
+    ctx.beginPath();
+    ctx.moveTo(pos1.x, pos1.y);
+    ctx.lineTo(pos2.x, pos2.y);
+    ctx.strokeStyle = '#7DBE3C';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.lineWidth = 1;
+}
+
+// Display the final path after Dijkstra's algorithm finishes
+function displayFinalPath(type) {
+    const endNode = document.getElementById('endNode').value;
+    let path = [];
+    let currentNode = endNode;
+
+    // Reconstruct the path from the end node to the start node
+    while (currentNode) {
+        path.unshift(currentNode); // Add the current node to the start of the path
+        currentNode = graph[currentNode].parent; // Move to the parent node
+    }
+    // Display the final path and total distance
+    document.getElementById('dijkstraDetails').textContent =
+        `${type === 'shortest' ? 'Shortest' : 'Fastest'} path: ${path.join(' -> ')}, Total Distance: ${graph[endNode].distance}`;
+}
+
+// Helper function to get edges from the graph
+function getEdgesFromGraph() {
+    let edges = [];
+    for (let node in graph) {
+        for (let neighbor in graph[node].edges) {
+            const dist = graph[node].edges[neighbor].distance;
+            const time = graph[node].edges[neighbor].time;
+            edges.push(`${node}-${neighbor}:${dist},${time}`);  // Format the edge data as "node1-node2:distance,time"
+        }
+    }
+    return edges; // Return the list of all edges
+}
+
+
+
+
+
+    </script>
+</body>
+</html>

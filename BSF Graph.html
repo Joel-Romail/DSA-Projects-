@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BFS Graph Visualization</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        canvas {
+            border: 1px solid black;
+        }
+        .button {
+         border-radius: 12px;   
+        }
+        #graphCanvas {
+           border-radius: 15px;
+           background: #fff;
+           border: 1px solid #aaa;
+           overflow: hidden;
+
+        }
+        #h1{
+            background-color: #aaa;
+            display: inline;
+            display: inline-block;
+        }
+
+    </style>
+</head>
+<body>
+    <h1 id="h1">Breadth-First Search Visualization</h1>
+
+    <div>
+        <label for="nodeInput">Enter Nodes (comma separated): </label>
+        <input type="text" id="nodeInput" placeholder="A,B,C,D,E,F" />
+    </div>
+
+    <br>
+
+    <div>
+        <label for="edgeInput">Enter Edges (comma separated pairs): </label>
+        <input type="text" id="edgeInput" placeholder="A-B,B-C,C-D,D-E,E-F" />
+    </div>
+
+    <br>
+
+    <div>
+        <button onclick="initializeGraph()" class="button">Create Graph</button>
+    </div>
+
+    <br>
+
+    <div>
+        <label for="startNode">Select Start Node: </label>
+        <select id="startNode"></select>
+        <button onclick="performBFS()" class="button">Start BFS</button>
+    </div>
+
+    <br>
+    
+    <canvas id="graphCanvas" width="700" height="400"></canvas>
+
+    <div>
+        <h2>BFS Traversal Order:</h2>
+        <p id="bfsOrder"></p> <!-- This will display the traversal order -->
+    </div>
+    
+    <script>
+
+        // Variables for graph data and canvas context
+let graph = {}; // This will hold the adjacency list representing the graph.
+let nodePositions = {}; // This will store the random positions (x, y) of each node for visualization.
+let canvas, ctx; // Canvas element and its context for drawing.
+
+
+// Initialize graph, nodes, and draw
+function initializeGraph() {
+    // Read the node input from the text field, split it by commas to get an array of node labels.
+    const nodes = document.getElementById('nodeInput').value.split(',');
+    
+    // Read the edge input from the text field, split it by commas to get an array of edge pairs (like "A-B").
+    const edges = document.getElementById('edgeInput').value.split(',');
+
+    // Create an adjacency list for the graph.
+    graph = {}; // Clear any previous graph data.
+    // Loop through each node and initialize an empty array for its neighbors in the adjacency list.
+    nodes.forEach(node => graph[node.trim()] = []);
+
+    // Loop through the edges to fill the adjacency list.
+    edges.forEach(edge => {
+        // Split each edge by the dash ("-") to get the two connected nodes.
+        const [node1, node2] = edge.split('-');
+        // Add node2 to the list of neighbors for node1 and vice versa (since the graph is undirected).
+        graph[node1.trim()].push(node2.trim());
+        graph[node2.trim()].push(node1.trim());
+    });
+
+    // Populate the select element with the nodes as options.
+    const select = document.getElementById('startNode');
+    select.innerHTML = ''; // Clear previous options if they exist.
+    nodes.forEach(node => {
+        const option = document.createElement('option'); // Create a new option element for each node.
+        option.value = node.trim(); // Set the value of the option to the node label.
+        option.textContent = node.trim(); // Set the display text of the option to the node label.
+        select.appendChild(option); // Add the option to the select element.
+    });
+
+    // Draw the graph on the canvas by calling drawGraph function.
+    drawGraph(nodes, edges);
+}
+
+
+// Draw nodes and edges on the canvas
+function drawGraph(nodes, edges) {
+    // Get the canvas element from the HTML.
+    canvas = document.getElementById('graphCanvas');
+    // Get the drawing context for the canvas (to perform the drawing operations).
+    ctx = canvas.getContext('2d');
+    // Clear any previous drawings on the canvas.
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Generate random positions for each node, which will be used to draw them on the canvas.
+    nodePositions = {}; // Clear any previous positions.
+    nodes.forEach(node => {
+        nodePositions[node] = {
+            x: Math.random() * (canvas.width - 100) + 50, // Generate random x-coordinate (with padding).
+            y: Math.random() * (canvas.height - 100) + 50 // Generate random y-coordinate (with padding).
+        };
+    });
+
+    // Draw edges (connections between nodes).
+    edges.forEach(edge => {
+        // Split each edge to get the two nodes connected by it.
+        const [node1, node2] = edge.split('-');
+        // Get the positions of the two nodes from the nodePositions object.
+        const pos1 = nodePositions[node1.trim()];
+        const pos2 = nodePositions[node2.trim()];
+        // Call the drawLine function to draw a line (edge) between the two nodes.
+        drawLine(pos1.x, pos1.y, pos2.x, pos2.y);
+    });
+
+    // Draw each node on the canvas.
+    nodes.forEach(node => {
+        // Get the position of the node from the nodePositions object.
+        const pos = nodePositions[node];
+        // Call the drawNode function to draw the node (as a circle) at its position.
+        drawNode(pos.x, pos.y, node);
+    });
+}
+
+
+// Function to draw a node (a circle) on the canvas
+function drawNode(x, y, label) {
+    ctx.beginPath(); // Begin a new drawing path for the node.
+    ctx.arc(x, y, 20, 0, 2 * Math.PI); // Draw a circle at (x, y) with a radius of 20.
+    ctx.fillStyle = '#FFCC00'; // Set the fill color of the node (yellow).
+    ctx.fill(); // Fill the circle with the specified color.
+    ctx.stroke(); // Draw the outline of the circle.
+
+    // Draw the label (node name) in the center of the circle.
+    ctx.fillStyle = '#000'; // Set the text color to black.
+    ctx.font = '16px Arial'; // Set the font size and style.
+    ctx.textAlign = 'center'; // Center the text horizontally.
+    ctx.textBaseline = 'middle'; // Center the text vertically.
+    ctx.fillText(label, x, y); // Draw the node label at the node's (x, y) position.
+}
+
+
+// Function to draw an edge (a line) between two nodes
+function drawLine(x1, y1, x2, y2) {
+    ctx.beginPath(); // Begin a new drawing path for the edge.
+    ctx.moveTo(x1, y1); // Move to the starting point of the line (first node's position).
+    ctx.lineTo(x2, y2); // Draw a line to the second node's position.
+    ctx.stroke(); // Render the line on the canvas.
+}
+
+
+// Perform BFS and visualize the traversal
+function performBFS() {
+    // Get the selected start node from the select input.
+    const startNode = document.getElementById('startNode').value;
+
+    // Create an object to keep track of visited nodes.
+    const visited = {};
+    // Create a queue to store nodes to visit (starting with the start node).
+    const queue = [startNode];
+    visited[startNode] = true; // Mark the start node as visited.
+
+    // Array to store the BFS traversal order
+    let traversalOrder = [];
+
+    let index = 0; // Index for iterating through the queue.
+
+    // Recursive function to perform BFS step-by-step
+    function bfsStep() {
+        if (index < queue.length) { // Check if there are nodes left in the queue.
+            const currentNode = queue[index]; // Get the next node from the queue.
+            index++; // Move to the next node.
+
+            // Store the current node in the traversal order
+            traversalOrder.push(currentNode);
+
+            // Get the neighbors (adjacent nodes) of the current node from the graph.
+            const neighbors = graph[currentNode];
+            // Loop through each neighbor of the current node.
+            neighbors.forEach(neighbor => {
+                // If the neighbor hasn't been visited yet:
+                if (!visited[neighbor]) {
+                    visited[neighbor] = true; // Mark it as visited.
+                    queue.push(neighbor); // Add it to the queue for future exploration.
+
+                    // Visualize the traversal by highlighting the edge.
+                    drawEdgeTraversal(currentNode, neighbor);
+                }
+            });
+
+            // Highlight the current node being visited.
+            highlightNode(currentNode);
+
+            // Call bfsStep again after a delay (to visualize the steps one by one).
+            setTimeout(bfsStep, 1000);  // 1-second delay between steps.
+        } else {
+            // After traversal is complete, display the order of traversal
+            document.getElementById('bfsOrder').textContent = traversalOrder.join(' => ');
+        }
+    }
+
+    bfsStep(); // Start the BFS traversal by calling the bfsStep function.
+}
+
+
+// Highlight a node during BFS (changes the color of the node being visited)
+function highlightNode(node) {
+    const pos = nodePositions[node]; // Get the position of the node.
+    ctx.beginPath(); // Begin a new drawing path.
+    ctx.arc(pos.x, pos.y, 25, 0, 2 * Math.PI); // Draw a larger circle around the node.
+    ctx.fillStyle = '#FF3333'; // Set the fill color to red (indicating the node is being visited).
+    ctx.fill(); // Fill the circle.
+    ctx.stroke(); // Draw the outline of the circle.
+    ctx.fillStyle = '#000'; // Set the text color to black.
+    ctx.fillText(node, pos.x, pos.y); // Redraw the node label.
+}
+
+
+// Visualize the traversal of an edge during BFS
+function drawEdgeTraversal(node1, node2) {
+    const pos1 = nodePositions[node1]; // Get the position of the first node.
+    const pos2 = nodePositions[node2]; // Get the position of the second node.
+
+    ctx.beginPath(); // Begin a new drawing path.
+    ctx.moveTo(pos1.x, pos1.y); // Move to the position of the first node.
+    ctx.lineTo(pos2.x, pos2.y); // Draw a line to the position of the second node.
+    ctx.strokeStyle = '#FF3333'; // Set the line color to red (indicating the edge is being traversed).
+    ctx.lineWidth = 2; // Make the line thicker for visualization.
+    ctx.stroke(); // Render the line.
+    ctx.strokeStyle = '#000';  // Reset the line color to black.
+    ctx.lineWidth = 1; // Reset the line width.
+}
+
+
+    </script>
+</body>
+</html>

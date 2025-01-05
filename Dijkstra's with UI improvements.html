@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dijkstra's Shortest/Fastest Path Visualization with D3</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        .b1 {
+            border-radius: 12px;
+            border-color: black;
+        }
+        .highlighted {
+            stroke: red;
+            stroke-width: 4;
+        }
+        .final-path {
+            stroke: green;
+            stroke-width: 4;
+        }
+    </style>
+</head>
+<body>
+    <h1>Dijkstra's Shortest/Fastest Path Visualization</h1>
+
+    <div>
+        <label for="nodeInput">Enter Nodes (comma separated): </label>
+        <input type="text" id="nodeInput" placeholder="A,B,C,D,E,F" class="b1" />
+    </div>
+    <br>
+    <div>
+        <label for="edgeInput">Enter edges with distance and time (comma separated pairs): </label>
+        <input type="text" id="edgeInput" placeholder="A-B:4,2,B-C:3,1,C-D:5,4" class="b1" />
+    </div>
+    <br>
+    <div>
+        <button onclick="initializeGraph()" class="b1">Create Graph</button>
+    </div>
+    <br>
+    <div>
+        <label for="startNode">Select Start Node: </label>
+        <select id="startNode"></select>
+        <label for="endNode">Select End Node: </label>
+        <select id="endNode"></select>
+        <button onclick="performDijkstra('shortest')">Shortest Path</button>
+        <button onclick="performDijkstra('fastest')">Fastest Path</button>
+        <button onclick="resetGraph()" class="b1">Reset</button>
+    </div>
+    <br>
+    <svg id="graphSVG" width="800" height="600" style="border-radius: 12px;"></svg>
+
+    <h2>Dijkstra Traversal Details:</h2>
+    <p id="dijkstraDetails"></p>
+
+    <script>
+let graph = {}; // Main object to store graph
+let nodePositions = {}; // Keeps track of positions of nodes on the canvas for drawing
+let svg, links, nodes, linkElements, nodeElements, linkLabels; // Variables for D3 visualization
+
+// Initialize the graph with nodes and edges
+function initializeGraph() {
+    const nodes = document.getElementById('nodeInput').value.trim().split(',');
+    const edges = document.getElementById('edgeInput').value.trim().split(';');
+
+    // Reset the graph object before initializing
+    graph = {};
+
+    // Loop through each node and initialize its properties in the graph
+    nodes.forEach(node => {
+        node = node.trim();
+        graph[node] = { 
+            edges: {}, 
+            distance: Infinity, 
+            parent: null, 
+            visited: false 
+        };
+    });
+
+    // Parse edges and store in the adjacency list
+    edges.forEach(edge => {
+        const [edgeInfo, travelTimes] = edge.split(':');
+        
+        if (edgeInfo && travelTimes) {
+            const [node1, node2] = edgeInfo.split('-');
+            const [distance, time] = travelTimes.split(',');
+
+            const dist = parseInt(distance.trim(), 10);
+            const timeVal = parseInt(time.trim(), 10);
+
+            if (graph[node1.trim()] && graph[node2.trim()]) {
+                graph[node1.trim()].edges[node2.trim()] = { distance: dist, time: timeVal };
+                graph[node2.trim()].edges[node1.trim()] = { distance: dist, time: timeVal };
+            }
+        }
+    });
+
+    // Populate the start and end node dropdowns
+    populateNodeSelections(nodes);
+    // Draw the graph using D3
+    drawGraph(nodes, edges);
+}
+
+// Populate dropdowns for selecting start and end nodes
+function populateNodeSelections(nodes) {
+    const startNodeSelect = document.getElementById('startNode');
+    const endNodeSelect = document.getElementById('endNode');
+    
+    // Clear previous options
+    startNodeSelect.innerHTML = '';
+    endNodeSelect.innerHTML = '';
+    
+    nodes.forEach(node => {
+        const startOption = document.createElement('option');
+        startOption.value = node.trim();
+        startOption.textContent = node.trim();
+        startNodeSelect.appendChild(startOption);
+
+        const endOption = document.createElement('option');
+        endOption.value = node.trim();
+        endOption.textContent = node.trim();
+        endNodeSelect.appendChild(endOption);
+    });
+}
+
+// Function to draw the graph on the canvas using D3
+function drawGraph(nodes, edges) {
+    svg = d3.select('#graphSVG');
+    nodePositions = {};
+
+    // Randomize node positions
+    nodes.forEach(node => {
+        nodePositions[node.trim()] = {
+            x: Math.random() * (svg.attr('width') - 100) + 50,
+            y: Math.random() * (svg.attr('height') - 100) + 50
+        };
+    });
+
+    // Create links (edges)
+    links = edges.map(edge => {
+        const [edgeInfo, travelTimes] = edge.split(':');
+        const [node1, node2] = edgeInfo.split('-');
+        const [distance, time] = travelTimes.split(',');
+
+        return {
+            source: node1.trim(),
+            target: node2.trim(),
+            distance: distance.trim(),
+            time: time.trim()
+        };
+    });
+
+    // Create nodes and links (edges) in SVG using D3
+    linkElements = svg.selectAll('.link')
+        .data(links)
+        .enter().append('line')
+        .attr('class', 'link')
+        .attr('x1', d => nodePositions[d.source].x)
+        .attr('y1', d => nodePositions[d.source].y)
+        .attr('x2', d => nodePositions[d.target].x)
+        .attr('y2', d => nodePositions[d.target].y)
+        .attr('stroke', '#000')
+        .attr('stroke-width', 2);
+
+    // Add labels to edges (distance/time)
+    linkLabels = svg.selectAll('.link-label')
+        .data(links)
+        .enter().append('text')
+        .attr('class', 'link-label')
+        .attr('x', d => (nodePositions[d.source].x + nodePositions[d.target].x) / 2)
+        .attr('y', d => (nodePositions[d.source].y + nodePositions[d.target].y) / 2)
+        .attr('dy', -10)
+        .attr('text-anchor', 'middle')
+        .text(d => `${d.distance} / ${d.time}`);
+
+    // Create nodes in SVG
+    nodeElements = svg.selectAll('.node')
+        .data(nodes)
+        .enter().append('circle')
+        .attr('class', 'node')
+        .attr('r', 20)
+        .attr('fill', '#FFCC00')
+        .attr('cx', d => nodePositions[d].x)
+        .attr('cy', d => nodePositions[d].y)
+        .call(d3.drag().on('drag', onNodeDrag));
+
+    // Add node titles (labels)
+    svg.selectAll('.node-title')
+        .data(nodes)
+        .enter().append('text')
+        .attr('class', 'node-title')
+        .attr('x', d => nodePositions[d].x)
+        .attr('y', d => nodePositions[d].y)
+        .attr('dy', 5)
+        .attr('text-anchor', 'middle')
+        .attr('fill', '#333')
+        .text(d => d);
+
+}
+
+// Handle dragging of nodes
+function onNodeDrag(event, d) {
+    const node = d;
+    const dx = event.x - nodePositions[node].x;
+    const dy = event.y - nodePositions[node].y;
+
+    nodePositions[node] = { x: event.x, y: event.y };
+
+    // Update node position
+    d3.select(this)
+        .attr('cx', event.x)
+        .attr('cy', event.y);
+
+    // Update edge (lines) positions
+    linkElements.each(function(link) {
+        if (link.source === node) {
+            d3.select(this)
+                .attr('x1', event.x)
+                .attr('y1', event.y);
+        }
+        if (link.target === node) {
+            d3.select(this)
+                .attr('x2', event.x)
+                .attr('y2', event.y);
+        }
+    });
+
+    // Update labels for the edges
+    linkLabels.each(function(link) {
+        if (link.source === node || link.target === node) {
+            const x = (nodePositions[link.source].x + nodePositions[link.target].x) / 2;
+            const y = (nodePositions[link.source].y + nodePositions[link.target].y) / 2;
+            d3.select(this)
+                .attr('x', x)
+                .attr('y', y);
+        }
+    });
+
+    // Update node title position
+    svg.selectAll('.node-title')
+        .each(function(n) {
+            if (n === node) {
+                d3.select(this)
+                    .attr('x', event.x)
+                    .attr('y', event.y);
+            }
+        });
+}
+
+// Perform Dijkstra's algorithm (shortest or fastest)
+function performDijkstra(type) {
+    const startNode = document.getElementById('startNode').value;
+    const endNode = document.getElementById('endNode').value;
+
+    if (!startNode || !endNode || !graph[startNode] || !graph[endNode]) {
+        alert("Please select valid start and end nodes.");
+        return;
+    }
+
+    // Reset graph before calculation
+    for (let node in graph) {
+        graph[node].distance = Infinity;
+        graph[node].parent = null;
+        graph[node].visited = false;
+    }
+
+    graph[startNode].distance = 0;
+    let unvisitedNodes = Object.keys(graph);
+    
+    // Clear any previous highlights
+    linkElements.classed('highlighted', false);
+    linkElements.classed('final-path', false); // Clear final path highlight
+
+    while (unvisitedNodes.length) {
+        // Sort nodes by their distance
+        unvisitedNodes.sort((a, b) => graph[a].distance - graph[b].distance);
+        const currentNode = unvisitedNodes.shift();
+
+        if (currentNode === endNode) break;
+
+        for (let neighbor in graph[currentNode].edges) {
+            if (!graph[neighbor].visited) {
+                const { distance, time } = graph[currentNode].edges[neighbor];
+                const valueToConsider = type === 'fastest' ? time : distance;
+                const newDistance = graph[currentNode].distance + valueToConsider;
+
+                if (newDistance < graph[neighbor].distance) {
+                    graph[neighbor].distance = newDistance;
+                    graph[neighbor].parent = currentNode;
+                }
+
+                // Highlight the traversed edge
+                linkElements.each(function(link) {
+                    if ((link.source === currentNode && link.target === neighbor) || 
+                        (link.target === currentNode && link.source === neighbor)) {
+                        d3.select(this).classed('highlighted', true);
+                    }
+                });
+            }
+        }
+
+        graph[currentNode].visited = true;
+    }
+
+    displayFinalPath(type);
+}
+
+// Display the final path
+function displayFinalPath(type) {
+    const endNode = document.getElementById('endNode').value;
+    let path = [];
+    let currentNode = endNode;
+
+    while (currentNode) {
+        path.unshift(currentNode);
+        currentNode = graph[currentNode].parent;
+    }
+
+    // Highlight the edges in the final path
+    const pathLinks = [];
+    for (let i = 0; i < path.length - 1; i++) {
+        const source = path[i];
+        const target = path[i + 1];
+        pathLinks.push({ source, target });
+    }
+
+    // Highlight the final path links
+    linkElements.each(function(link) {
+        pathLinks.forEach(pathLink => {
+            if ((link.source === pathLink.source && link.target === pathLink.target) ||
+                (link.target === pathLink.source && link.source === pathLink.target)) {
+                d3.select(this).classed('final-path', true);
+            }
+        });
+    });
+
+    // Display the result
+    document.getElementById('dijkstraDetails').textContent =
+        `${type === 'shortest' ? 'Shortest' : 'Fastest'} path: ${path.join(' -> ')}, Total Distance: ${graph[endNode].distance}`;
+}
+
+// Reset the graph
+function resetGraph() {
+    graph = {};
+    nodePositions = {};
+    document.getElementById('dijkstraDetails').textContent = '';
+    svg.selectAll('*').remove(); // Remove current graph visualization
+    document.getElementById('nodeInput').value = '';
+    document.getElementById('edgeInput').value = '';
+}
+</script>
+</body>
+</html>
