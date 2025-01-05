@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title>Doubly Linked List</title>
+</head>
+<body>
+    <pre>
+        <script>
+            function Node(data) {
+                this.data = data;
+                this.prev = null;
+                this.next = null;
+            }
+            function DoublyLinkedList() {
+                this.head = null;
+                this.length = 0;
+
+                // Add method to DoublyLinkedList
+                this.add = function (data) {
+                    var newNode = new Node(data);
+                    newNode.next = this.head;
+                    if (this.head !== null) {
+                        this.head.prev = newNode;
+                    }
+                    this.head = newNode;
+                    length++;
+                };
+                // Size method to DoublyLinkedList
+                this.size = function () {
+                    var count = 0;
+                    var current = this.head;
+                    while (current) {
+                        count++;
+                        current = current.next;
+                    }
+                    return count;
+                }
+                // Insert method to DoublyLinkedList
+                this.insert = function (index, data) {
+    if (index < 0 || index > this.size()) {
+        console.error("Invalid Index");
+        return;
+    }
+
+    var newNode = new Node(data);
+
+    // Case 1: Insertion at the head
+    if (index === 0) {
+        newNode.next = this.head;
+        if (this.head) {
+            this.head.prev = newNode;
+        }
+        this.head = newNode;
+        length++;  // Don't forget to update the length here as well
+        return;
+    }
+
+    // Case 2: Insertion at an arbitrary position (or at the end)
+    var current = this.head;
+    for (var i = 0; i < index - 1; i++) {
+        current = current.next;
+    }
+
+    // Inserting at the end of the list
+    if (!current.next) {
+        current.next = newNode;
+        newNode.prev = current;
+    } else {
+        // Regular insertion between nodes
+        newNode.next = current.next;
+        newNode.prev = current;
+        current.next.prev = newNode;  // the backward link of the next node
+        current.next = newNode;       // the forward link of the current node
+    }
+
+    length++;  // Increment the size of the list
+};
+
+              
+
+                // Remove method to DoublyLinkedList
+                this.remove = function (index) {
+                    if (index < 0 || index >= this.size()) {
+                        console.error("Invalid Index");
+                        return;
+                    }
+
+                    if (index === 0) {
+                        this.head = this.head.next;
+                        if (this.head) {
+                            this.head.prev = null;
+                        }
+                        return;
+                    }
+                    var current = this.head;
+                    for (var i = 0; i < index - 1; i++) {
+                        current = current.next;
+                    }
+
+                    var nodeToRemove = current.next;
+
+                    if (nodeToRemove) {
+                        current.next = nodeToRemove.next;
+                        if (nodeToRemove.next) {
+                            nodeToRemove.next.prev = current;
+                        }
+                    }
+                };
+                // Print method to DoublyLinkedList
+                this.print = function () {
+                    var current = this.head;
+                    var result = [];
+                    while (current) {
+                        result.push(current.data);
+                        current = current.next;
+                    }
+                    console.log(result.join(" <-> "));
+                };
+            }
+            var dll = new DoublyLinkedList();
+            dll.insert(0, 2);
+            dll.insert(1, 3);
+            dll.insert(2, 4);
+            dll.insert(3, 5);
+            dll.insert(4, 6);
+            dll.insert(5, 7);
+            dll.insert(6, 8);
+           //dll.print();  // Print the current list
+            //dll.remove(3);  // Remove the node at index 3
+            //dll.print();  // Print the list after removing the node at index 3
+        </script>
+    </pre>
+</body>
+</html>

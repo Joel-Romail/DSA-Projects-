@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta charset="utf-8"/>
+        <title>Cyclical list (add, insert, remove)</title>
+    </head>
+
+    <body>
+        <pre>
+            <script>
+
+class Node {
+  constructor(data) {
+    this.data = data;
+    this.next = null; // Initially, the next pointer is null
+  }
+}
+
+class SinglyLinkedList {
+  constructor() {
+    this.head = null; // Head points to the first node of the list
+  }
+
+  // Add a new node to the end of the list
+  add(data) {
+    let newNode = new Node(data);
+
+    // If list is empty, make the new node the head and point it to itself
+    if (this.head === null) {
+      this.head = newNode;
+      this.head.next = this.head; // Points to itself to make it cyclical
+    } else {
+      let temp = this.head;
+
+      // Traverse to the last node (where the next points back to head)
+      while (temp.next !== this.head) {
+        temp = temp.next;
+      }
+
+      // Add the new node at the end and point its next to head
+      temp.next = newNode;
+      newNode.next = this.head;
+    }
+  }
+
+  // Insert a new node at a specific index
+  insert(data, index) {
+    let newNode = new Node(data);
+
+    if (index === 0) {
+      if (this.head === null) {
+        this.head = newNode;
+        this.head.next = this.head; // Points to itself to make it cyclical
+      } else {
+        let temp = this.head;
+
+        // Traverse to the last node
+        while (temp.next !== this.head) {
+          temp = temp.next;
+        }
+
+        // Insert new node at the head position
+        newNode.next = this.head;
+        this.head = newNode;
+        temp.next = this.head; // Point the last node to the new head
+      }
+    } else {
+      let temp = this.head;
+      let count = 0;
+
+      // Traverse to the position just before the insertion point
+      while (count < index - 1 && temp.next !== this.head) {
+        temp = temp.next;
+        count++;
+      }
+
+      if (count === index - 1) {
+        // Insert the new node at the specified position
+        newNode.next = temp.next;
+        temp.next = newNode;
+      } else {
+        throw new Error("Index out of bounds");
+      }
+    }
+  }
+
+  // Remove a node at a specific index
+  remove(index) {
+    if (this.head === null) {
+      throw new Error("List is empty");
+    }
+
+    if (index === 0) {
+      let temp = this.head;
+
+      // If there's only one node in the list
+      if (this.head.next === this.head) {
+        this.head = null;
+      } else {
+        // Traverse to the last node
+        while (temp.next !== this.head) {
+          temp = temp.next;
+        }
+
+        // Remove the head by pointing last node's next to the second node
+        temp.next = this.head.next;
+        this.head = this.head.next;
+      }
+    } else {
+      let temp = this.head;
+      let count = 0;
+
+      // Traverse to the node just before the one we want to remove
+      while (count < index - 1 && temp.next !== this.head) {
+        temp = temp.next;
+        count++;
+      }
+
+      if (temp.next !== this.head) {
+        // Remove the node by skipping it
+        temp.next = temp.next.next;
+      } else {
+        throw new Error("Index out of bounds");
+      }
+    }
+  }
+
+  // Print the list (stopping when we cycle back to the head)
+  printList() {
+    if (this.head === null) {
+      console.log("List is empty");
+      return;
+    }
+    let temp = this.head;
+    let result = '';
+    do {
+      result += temp.data + " -> ";
+      temp = temp.next;
+    } while (temp !== this.head);
+
+    console.log(result + "(back to head)");
+  }
+}
+
+// Example usage:
+const linkedList = new SinglyLinkedList();
+linkedList.add(10);
+linkedList.add(20);
+linkedList.add(30);
+
+// Print list before any modification
+console.log("Initial list:");
+linkedList.printList();  // 10 -> 20 -> 30 -> (back to head)
+
+// Insert an element at position 1
+linkedList.insert(15, 1);
+console.log("\nAfter inserting 15 at index 1:");
+linkedList.printList();  // 10 -> 15 -> 20 -> 30 -> (back to head)
+
+// Remove the element at position 2
+linkedList.remove(2);
+console.log("\nAfter removing element at index 2:");
+linkedList.printList();  // 10 -> 15 -> 30 -> (back to head)
+
+            </script>
+        </pre>
+    </body>
+
+</html>
